@@ -4,7 +4,7 @@ Provides dictionary-like access to settings.
 """
 import typing
 from pathlib import Path
-DEFAULT_SETTINGS_FILENAME=Path(__file__).parent/'settings.yaml'
+DEFAULT_SETTINGS_FILENAME=Path(__file__).parent/'data'/'settings.yaml'
 
 
 class Settings:

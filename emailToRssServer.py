@@ -18,12 +18,12 @@ Configuration: data/settings.yaml
 import typing
 import threading
 import time
-from .rssServer import rebuildFeed, startRssServer
-from .emailSources import EmailSource,getEmailSources
-from .feedStore import FeedStore
-from .feedState import FeedState
-from .settings import Settings
 from pathlib import Path
+from rssServer import rebuildFeed,startRssServer
+from emailSources import EmailSource,getEmailSources
+from feedStore import FeedStore
+from feedState import FeedState
+from settings import Settings
 
 
 def startEmailToRssServer(settingsFile:typing.Union[None,str,Path]=None)->None:
@@ -48,6 +48,11 @@ def startEmailToRssServer(settingsFile:typing.Union[None,str,Path]=None)->None:
         the feed whenever anything changes.
         """
         sources:typing.List[EmailSource]=list(getEmailSources(settings,store))
+        print('Watching email sources:')
+        if not sources:
+            raise Exception("No email sources found.  Please configure.")
+        for source in sources:
+            print(f'\t{source.name}')
         while True:
             changed=False
             for source in sources:
@@ -74,6 +79,8 @@ def main(args:typing.Iterable[str])->int:
     printhelp=False
     settingsFile:typing.Optional[str]=None
     for arg in args:
+        if not arg:
+            continue
         if arg[0]=='-':
             kw=arg.split('=',1)
             if kw[0] in ('-h','--help'):

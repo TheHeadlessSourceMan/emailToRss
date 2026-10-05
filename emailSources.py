@@ -12,8 +12,8 @@ import os
 import re
 from email.header import decode_header
 from email.message import Message
-from .feedStore import FeedStore
-from .settings import Settings
+from feedStore import FeedStore
+from settings import Settings
 
 
 class EmailSource:
@@ -26,6 +26,13 @@ class EmailSource:
         :store: where to put discovered items
         """
         self.store=store
+
+    @property
+    def name(self)->str:
+        """
+        Get a name for this source
+        """
+        raise NotImplementedError()
 
     def poll(self)->bool:
         """
@@ -48,6 +55,17 @@ class ImapEmailSource(EmailSource):
         """
         EmailSource.__init__(self,store)
         self.settings=settings
+
+    @property
+    def email(self)->str:
+        """
+        Get email address of this account
+        """
+        return f"{self.settings['user']}@{self.settings['host']}"
+    
+    @property
+    def name(self)->str:
+        return f"IMAP: {self.email}"
 
     def poll(self)->bool:
         """
@@ -94,13 +112,20 @@ class LocalEmailSource(EmailSource):
         EmailSource.__init__(self,store)
         self.path:str=settings['path']
 
+    @property
+    def name(self)->str:
+        """
+        Name of this account
+        """
+        return str(self.path)
+
     def poll(self)->bool:
         """
         Read RSS and RSS+DEL tagged messages, removing the latter.
         """
         changed=False
         path=Path(self.path)
-        box:mailbox.Mailbox
+        box:typing.Union[mailbox.Maildir,mailbox.mbox]
         if isMaildir(path):
             box=mailbox.Maildir(str(path),create=False)
         elif path.is_file():
@@ -141,7 +166,7 @@ def getEmailSources(
     if autodetectLocalSources is None:
         autodetectLocalSources=settings.get("autodetectLocalSources",True)
     sources:typing.List[EmailSource]=[]
-    for sourcesettings in settings['sources']:
+    for sourcesettings in settings.get('sources',[]):
         if sourcesettings['type']=='imap':
             sources.append(ImapEmailSource(sourcesettings,store))
         else:

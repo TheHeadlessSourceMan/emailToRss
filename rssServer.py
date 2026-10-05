@@ -5,9 +5,9 @@ import typing
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from xml.sax.saxutils import escape
 
-from .feedStore import FeedStore
-from .feedState import FeedState
-from .settings import Settings
+from feedStore import FeedStore
+from feedState import FeedState
+from settings import Settings
 
 DEFAULT_RSS_URL_PATH='/rss' # URL path for the RSS feed
 RSS_CONTENT_TYPE='application/rss+xml; charset=utf-8'
