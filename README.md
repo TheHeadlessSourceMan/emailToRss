@@ -29,9 +29,10 @@ Settings are found in te file: ./data/settings.yaml
 
 For the most part they are pretty self-explanitory.
 
-But notice that you can only do IMAP acconts and/or local maildir directories (eg. Thunderbird).
+But notice that you can only do IMAP acconts and/or local mbox or maildir files (eg. Thunderbird).
 
-You CANNOT connect directly to POP accounts because there is no such thing as tags in POP. You will have to use a local client to connect to those, then save the tags locally in maildir directories.
+You CANNOT connect directly to POP accounts because there is no such thing as tags in POP. You will have to use a local client to connect to those, then save the tags locally in local mbox or maildir files.
+NOTE: If you want to use maildir in thunderbird, you'll have to change your thunderbird configuration to use maildir.  See: https://wiki.mozilla.org/Thunderbird/Maildir
 
 As stated earlier, you will need to add email filters (either in your email client, or whatever) to tag the messages you want added to the RSS feed.  Either use "RSS+DEL" for emails you want added to the feed and deleted from email, or "RSS" if you want to add them to the feed but still keep them in email.
 

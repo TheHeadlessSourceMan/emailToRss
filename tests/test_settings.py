@@ -24,18 +24,18 @@ class SettingsTests(unittest.TestCase):
 
     def test_yaml_file_is_loaded(self):
         """Values from a YAML file are available by key."""
-        path = self._write("a.yaml", "poll_seconds: 30\nrss:\n  title: News\n")
+        path = self._write("a.yaml", "pollSeconds: 30\nrss:\n  title: News\n")
 
         settings = Settings(path)
 
-        self.assertEqual(settings["poll_seconds"], 30)
+        self.assertEqual(settings["pollSeconds"], 30)
         self.assertEqual(settings["rss"], {"title": "News"})
 
     def test_json_file_is_loaded(self):
         """Values from a JSON file are available by key."""
-        path = self._write("a.json", json.dumps({"poll_seconds": 5}))
+        path = self._write("a.json", json.dumps({"pollSeconds": 5}))
 
-        self.assertEqual(Settings(path)["poll_seconds"], 5)
+        self.assertEqual(Settings(path)["pollSeconds"], 5)
 
     def test_string_filename_is_accepted(self):
         """A plain string path works the same as a Path."""

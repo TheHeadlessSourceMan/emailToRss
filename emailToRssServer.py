@@ -57,7 +57,7 @@ def startEmailToRssServer(settingsFile:typing.Union[None,str,Path]=None)->None:
                     print('source error',e)
             if changed:
                 rebuildFeed(settings,store,state)
-            time.sleep(settings.get('poll_seconds',60))
+            time.sleep(settings.get('pollSeconds',60))
     threading.Thread(
         target=emailToRssConverterThread,
         args=(settings,store,state),
