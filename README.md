@@ -34,3 +34,5 @@ But notice that you can only do IMAP acconts and/or local maildir directories (e
 You CANNOT connect directly to POP accounts because there is no such thing as tags in POP. You will have to use a local client to connect to those, then save the tags locally in maildir directories.
 
 As stated earlier, you will need to add email filters (either in your email client, or whatever) to tag the messages you want added to the RSS feed.  Either use "RSS+DEL" for emails you want added to the feed and deleted from email, or "RSS" if you want to add them to the feed but still keep them in email.
+
+Then simply run `python emailToRssServer.py` to start
