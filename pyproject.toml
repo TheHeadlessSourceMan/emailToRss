@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "emailToRss"
+version = "0.0.0"
+description = "Publish tagged emails as an RSS feed."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "PyYAML",
+]
+
+[tool.setuptools]
+py-modules = ["emailSources", "emailToRSS", "feedState", "feedStore", "settings"]
+
+[tool.coverage.run]
+branch = true
+source = ["."]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+omit = ["tests/*"]

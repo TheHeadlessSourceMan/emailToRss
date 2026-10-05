@@ -1,0 +1,15 @@
+poll_seconds: 60
+rss:
+  title: Email Newsfeed
+  ip: 127.0.0.1
+  port: 8080
+  urlPath: /rss
+sources:
+  - type: imap
+    host: imap.example.com
+    port: 993
+    username: user@example.com
+    password: secret
+    folder: INBOX
+  - type: local
+    path: /path/to/maildir/folder
