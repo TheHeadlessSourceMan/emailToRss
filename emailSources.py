@@ -172,7 +172,7 @@ def getEmailSources(
         else:
             sources.append(LocalEmailSource(sourcesettings,store))
     if autodetectLocalSources:
-        findLocalMailSources(store,ignore=sources)
+        sources.extend(findLocalMailSources(store,ignore=sources))
     return sources
 
 
@@ -282,16 +282,19 @@ def _profileMailRoots(profile:Path)->typing.Iterable[Path]:
         text=(profile/'prefs.js').read_text(encoding='utf-8',errors='replace')
     except OSError:
         return
+    preferences:typing.Dict[str,typing.Dict[bool,str]]={}
     for m in _PREF_RE.finditer(text):
         try:
             value=json.loads('"'+m.group(3)+'"')
         except ValueError:
             continue
-        if m.group(2): # relative to the profile directory
-            if value.startswith('[ProfD]'):
-                yield profile/value[len('[ProfD]'):]
-        else:
-            yield Path(value)
+        preferences.setdefault(m.group(1),{})[bool(m.group(2))]=value
+    for values in preferences.values():
+        relative=values.get(True)
+        if relative and relative.startswith('[ProfD]'):
+            yield profile/relative[len('[ProfD]'):]
+        elif absolute:=values.get(False):
+            yield Path(absolute)
 
 
 def _profilesUnder(root:Path)->typing.Iterable[Path]:
