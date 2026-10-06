@@ -37,3 +37,13 @@ NOTE: If you want to use maildir in thunderbird, you'll have to change your thun
 As stated earlier, you will need to add email filters (either in your email client, or whatever) to tag the messages you want added to the RSS feed.  Either use "RSS+DEL" for emails you want added to the feed and deleted from email, or "RSS" if you want to add them to the feed but still keep them in email.
 
 Then simply run `python emailToRssServer.py` to start
+
+## When things don't work
+
+**RSS+DEL messages are sent to RSS but not deleted**
+
+This is generally because the email client sees a message missing locally and simply decides to re-download it.  There are two workarounds.  Either:
+
+a) Use IMAP so it can be deleted.
+
+b) Have your rule not only set the email's RSS+DEL tag, but also move it to a new folder with a 1 day retention policy.  That way it gets deleted later by the cleanup bot.

@@ -6,7 +6,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from emailSources import LocalEmailSource, _profileMailRoots, scanForMailboxes
+from emailSources import (
+    LocalEmailSource,
+    _profileMailRoots,
+    readMboxIndexTags,
+    scanForMailboxes,
+)
 from feedStore import FeedStore
 from settings import Settings
 
@@ -106,6 +111,43 @@ class LocalEmailSourceTests(unittest.TestCase):
 
             self.assertTrue(source.poll())
             self.assertEqual(store.items()[0][0],guid)
+
+    def test_poll_removes_deleted_message_from_thunderbird_index(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/"INBOX"
+            deleted=email.message.EmailMessage()
+            deleted['Message-ID']='<delete@example.com>'
+            deleted['Subject']='Delete this message'
+            deleted.set_content('Message body')
+            retained=email.message.EmailMessage()
+            retained['Message-ID']='<keep@example.com>'
+            retained['Subject']='Keep this message'
+            retained.set_content('Message body')
+            box=mailbox.mbox(str(path))
+            box.add(deleted)
+            box.add(retained)
+            box.close()
+            indexPath=Path(str(path)+'.msf')
+            indexPath.write_text(
+                '(5506=delete@example.com)(5507=keep@example.com)'
+                '(551F=nonjunk rss+del)(5520=nonjunk rss)'
+                '[1:m(^83^5506)(^BC^551F)]'
+                '[2:m(^83^5507)(^BC^5520)]',
+                encoding='utf-8',
+            )
+
+            store=FeedStore(str(Path(tmp)/'feed.db'))
+            source=self._source(path,store)
+
+            self.assertTrue(source.poll())
+            remaining=mailbox.mbox(str(path),create=False)
+            self.assertEqual(len(remaining),1)
+            self.assertEqual(remaining[0]['Message-ID'],'<keep@example.com>')
+            remaining.close()
+            self.assertEqual(
+                readMboxIndexTags(indexPath),
+                {'keep@example.com':{'NONJUNK','RSS'}},
+            )
 
 
 if __name__ == "__main__":

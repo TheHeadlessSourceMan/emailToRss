@@ -137,8 +137,10 @@ class LocalEmailSource(EmailSource):
         # mbox must be locked while Thunderbird may also be writing it
         box.lock()
         try:
-            remove:typing.List[str]=[]
-            indexTags=readMboxIndexTags(path.with_name(path.name+'.msf'))
+            remove:typing.List[typing.Union[int,str]]=[]
+            indexPath=path.with_name(path.name+'.msf')
+            indexTags=readMboxIndexTags(indexPath)
+            removedMessageIds:typing.Set[str]=set()
             for key,msg in box.items():
                 msgTags=getTags(msg)
                 guid=msg.get('Message-ID',f'{path}:{key}')
@@ -149,10 +151,16 @@ class LocalEmailSource(EmailSource):
                         changed=True
                     if 'RSS+DEL' in msgTags:
                         remove.append(key)
+                        removedMessageIds.add(_messageIdKey(guid))
             for key in remove:
-                box.remove(key)
+                if isinstance(box,mailbox.mbox):
+                    # mailbox.mbox uses integer keys despite its str stub.
+                    box.remove(typing.cast(str,key))
+                else:
+                    box.remove(str(key))
             if remove:
                 box.flush()
+                _removeMboxIndexMessages(indexPath,removedMessageIds)
         finally:
             box.unlock()
             box.close()
@@ -243,17 +251,57 @@ def readMboxIndexTags(indexPath:Path)->typing.Dict[str,typing.Set[str]]:
     atoms={key.upper():value for key,value in _MORK_ATOM_RE.findall(text)}
     tagsByMessage:typing.Dict[str,typing.Set[str]]={}
     for record in _MORK_RECORD_RE.finditer(text):
-        values:typing.Dict[int,str]={}
-        for column,valueRef,literal in _MORK_CELL_RE.findall(record.group(1)):
-            columnId=int(column,16)
-            values[columnId]=atoms.get(valueRef.upper(),'') if valueRef \
-                else literal
-        messageId=_messageIdKey(values.get(0x83,''))
-        keywords=values.get(0xBC,'')
+        messageId=_morkRecordMessageId(record.group(1),atoms)
+        keywords=_morkRecordValue(record.group(1),0xBC,atoms)
         if messageId and keywords:
             tagsByMessage[messageId]={
                 tag.upper() for tag in keywords.split()}
     return tagsByMessage
+
+
+def _removeMboxIndexMessages(
+    indexPath:Path,
+    messageIds:typing.Set[str]
+    )->None:
+    """
+    Remove deleted mbox messages from Thunderbird's summary index.
+    """
+    if not messageIds or not indexPath.is_file():
+        return
+    text=indexPath.read_text(encoding='utf-8',errors='surrogateescape')
+    atoms={key.upper():value for key,value in _MORK_ATOM_RE.findall(text)}
+    records=list(_MORK_RECORD_RE.finditer(text))
+    kept:typing.List[str]=[]
+    start=0
+    for record in records:
+        if _morkRecordMessageId(record.group(1),atoms) in messageIds:
+            kept.append(text[start:record.start()])
+            start=record.end()
+    if start:
+        kept.append(text[start:])
+        indexPath.write_text(
+            ''.join(kept),encoding='utf-8',errors='surrogateescape')
+
+
+def _morkRecordValue(
+    record:str,
+    columnId:int,
+    atoms:typing.Dict[str,str]
+    )->str:
+    """
+    Resolve a Mork record cell using the file's atom table.
+    """
+    for column,valueRef,literal in _MORK_CELL_RE.findall(record):
+        if int(column,16)==columnId:
+            return atoms.get(valueRef.upper(),'') if valueRef else literal
+    return ''
+
+
+def _morkRecordMessageId(record:str,atoms:typing.Dict[str,str])->str:
+    """
+    Get the normalized Message-ID from a Mork summary record.
+    """
+    return _messageIdKey(_morkRecordValue(record,0x83,atoms))
 
 
 _NOT_MAILBOX_SUFFIXES=('.msf','.dat','.json','.html','.txt','.lock','.sqlite')
