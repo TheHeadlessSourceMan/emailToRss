@@ -1,9 +1,14 @@
 """Tests for email source discovery."""
+import email.message
+import json
+import mailbox
 import tempfile
 import unittest
 from pathlib import Path
 
-from emailSources import _profileMailRoots
+from emailSources import LocalEmailSource, _profileMailRoots, scanForMailboxes
+from feedStore import FeedStore
+from settings import Settings
 
 
 class ProfileMailRootsTests(unittest.TestCase):
@@ -37,6 +42,70 @@ class ProfileMailRootsTests(unittest.TestCase):
         )
 
         self.assertIn(custom, set(_profileMailRoots(self.profile)))
+
+
+class LocalEmailSourceTests(unittest.TestCase):
+    """Verify tagged messages in local Thunderbird/Betterbird mailboxes."""
+
+    def _source(self,path:Path,store:FeedStore)->LocalEmailSource:
+        settingsPath=path.parent/"source.json"
+        settingsPath.write_text(
+            json.dumps({"path":str(path)}),encoding="utf-8")
+        return LocalEmailSource(Settings(settingsPath),store)
+
+    def test_scan_skips_trash_junk_and_sent_folders(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            (root/"INBOX").write_bytes(b"From sender@example.com\n")
+            for name in (".Trash", "Junk", "Sent Items"):
+                folder=root/name
+                (folder/"cur").mkdir(parents=True)
+                (folder/"new").mkdir()
+
+            found=set(scanForMailboxes(root))
+
+            self.assertEqual(found,{root/"INBOX"})
+
+    def test_poll_skips_configured_trash_folder(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/"Trash"
+            msg=email.message.EmailMessage()
+            msg['Message-ID']='<trashed@example.com>'
+            msg['Subject']='Tagged trash message'
+            msg['X-Mozilla-Keys']='RSS'
+            msg.set_content('Message body')
+            box=mailbox.mbox(str(path))
+            box.add(msg)
+            box.close()
+
+            store=FeedStore(str(Path(tmp)/'feed.db'))
+            source=self._source(path,store)
+
+            self.assertFalse(source.poll())
+            self.assertEqual(store.items(),[])
+
+    def test_poll_reads_tag_from_thunderbird_index(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/"INBOX"
+            guid='<message@example.com>'
+            msg=email.message.EmailMessage()
+            msg['Message-ID']=guid
+            msg['Subject']='Tagged message'
+            msg.set_content('Message body')
+            box=mailbox.mbox(str(path))
+            box.add(msg)
+            box.close()
+            Path(str(path)+'.msf').write_text(
+                '(5506=message@example.com)(551F=nonjunk rss)'
+                '[1:m(^83^5506)(^BC^551F)]',
+                encoding='utf-8',
+            )
+
+            store=FeedStore(str(Path(tmp)/'feed.db'))
+            source=self._source(path,store)
+
+            self.assertTrue(source.poll())
+            self.assertEqual(store.items()[0][0],guid)
 
 
 if __name__ == "__main__":

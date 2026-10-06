@@ -125,6 +125,8 @@ class LocalEmailSource(EmailSource):
         """
         changed=False
         path=Path(self.path)
+        if _isExcludedMailFolder(path):
+            return False
         box:typing.Union[mailbox.Maildir,mailbox.mbox]
         if isMaildir(path):
             box=mailbox.Maildir(str(path),create=False)
@@ -136,10 +138,12 @@ class LocalEmailSource(EmailSource):
         box.lock()
         try:
             remove:typing.List[str]=[]
+            indexTags=readMboxIndexTags(path.with_name(path.name+'.msf'))
             for key,msg in box.items():
                 msgTags=getTags(msg)
+                guid=msg.get('Message-ID',f'{path}:{key}')
+                msgTags.update(indexTags.get(_messageIdKey(guid),set()))
                 if 'RSS' in msgTags or 'RSS+DEL' in msgTags:
-                    guid=msg.get('Message-ID',f'{path}:{key}')
                     subject=decodeHeader(msg.get('Subject',''))
                     if self.store.add(guid,subject,getBody(msg)):
                         changed=True
@@ -210,10 +214,60 @@ def getTags(msg:Message)->typing.Set[str]:
     """
     Get the Thunderbird tags (X-Mozilla-Keys) of a message.
     """
-    return set(str(msg.get('X-Mozilla-Keys','')).split())
+    return {tag.upper() for tag in
+        str(msg.get('X-Mozilla-Keys','')).split()}
+
+
+def _messageIdKey(guid:str)->str:
+    """
+    Normalize the optional angle brackets around a Message-ID.
+    """
+    if guid.startswith('<') and guid.endswith('>'):
+        return guid[1:-1]
+    return guid
+
+
+_MORK_ATOM_RE=re.compile(r'\(([0-9A-Fa-f]+)\s*=\s*([^)]*)\)')
+_MORK_RECORD_RE=re.compile(r'\[([^\]]*)\]',re.DOTALL)
+_MORK_CELL_RE=re.compile(
+    r'\(\^([0-9A-Fa-f]+)(?:\^([0-9A-Fa-f]+)|=([^)]*))\)')
+
+
+def readMboxIndexTags(indexPath:Path)->typing.Dict[str,typing.Set[str]]:
+    """
+    Read Message-ID keywords from a Thunderbird/Betterbird Mork index.
+    """
+    if not indexPath.is_file():
+        return {}
+    text=indexPath.read_text(encoding='utf-8',errors='replace')
+    atoms={key.upper():value for key,value in _MORK_ATOM_RE.findall(text)}
+    tagsByMessage:typing.Dict[str,typing.Set[str]]={}
+    for record in _MORK_RECORD_RE.finditer(text):
+        values:typing.Dict[int,str]={}
+        for column,valueRef,literal in _MORK_CELL_RE.findall(record.group(1)):
+            columnId=int(column,16)
+            values[columnId]=atoms.get(valueRef.upper(),'') if valueRef \
+                else literal
+        messageId=_messageIdKey(values.get(0x83,''))
+        keywords=values.get(0xBC,'')
+        if messageId and keywords:
+            tagsByMessage[messageId]={
+                tag.upper() for tag in keywords.split()}
+    return tagsByMessage
 
 
 _NOT_MAILBOX_SUFFIXES=('.msf','.dat','.json','.html','.txt','.lock','.sqlite')
+_EXCLUDED_MAIL_FOLDER_TOKENS={
+    'trash','deleted','bin','junk','spam','sent'
+}
+
+
+def _isExcludedMailFolder(path:Path)->bool:
+    """
+    True if a mailbox path names a trash, junk, or sent folder.
+    """
+    tokens=set(re.findall(r'[a-z0-9]+',path.name.lower()))
+    return bool(tokens & _EXCLUDED_MAIL_FOLDER_TOKENS)
 
 
 def isMaildir(path:Path)->bool:
@@ -245,6 +299,8 @@ def scanForMailboxes(root:Path,maxDepth:int=8)->typing.Iterable[Path]:
     (including root itself). Covers Thunderbird/Betterbird .sbd subfolder
     directories and Maildir++ dot-folders.
     """
+    if _isExcludedMailFolder(root):
+        return
     try:
         if isMaildir(root):
             yield root
