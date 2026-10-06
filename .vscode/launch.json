@@ -12,6 +12,14 @@
             "program": "__main__.py",
             "console": "integratedTerminal",
             "args": [""]
+        },
+        {
+            "name": "Start the client",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "rssTestReader.py",
+            "console": "integratedTerminal",
+            "args": ["http://127.0.0.1:8080/rss"]
         }
     ]
 }
