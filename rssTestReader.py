@@ -29,9 +29,10 @@ def simpleRssReader(
     If there is a callback, send new feed entries to that.
     Otherwise, dump to stdout.
     """
-    seen=set()
+    seen:typing.Set[str]=set()
     if SEEN_FILENAME.exists():
-        for line in SEEN_FILENAME.read_text(encoding='utf-8',errors='ignore'):
+        data=SEEN_FILENAME.read_text(encoding='utf-8',errors='ignore')
+        for line in data.splitlines():
             seen.add(line)
     while True:
         try:
@@ -40,22 +41,24 @@ def simpleRssReader(
             root = ET.fromstring(xml_data)
             sawMore=False
             for item in root.findall(".//item"):
-                guid = item.findtext("guid") or item.findtext("link") or item.findtext("title")
-                if guid not in seen:
+                guid=item.findtext("guid")\
+                    or item.findtext("link")\
+                    or item.findtext("title")
+                if guid is not None and guid not in seen:
                     seen.add(guid)
                     sawMore=True
-                    title=item.findtext("title","(no title)")
-                    contents=item.contents()
-                    url=item.findtext("link")
+                    articleTitle=item.findtext("title","(no title)")
+                    articleDescription=item.findtext("description","")
+                    articleUrl=item.findtext("link","")
                     if onNewItem is not None:
-                        onNewItem(title,contents,url)
+                        onNewItem(articleTitle,articleDescription,articleUrl)
                     else:
                         print()
-                        print(title)
-                        print('_'*len(title))
-                        if url:
-                          print(url)
-                        print(contents)
+                        print(articleTitle)
+                        print('_'*len(articleTitle))
+                        if articleUrl:
+                            print(articleUrl)
+                        print(articleDescription)
             if sawMore:
                 SEEN_FILENAME.write_text('\n'.join(seen))
             time.sleep(pollIntervalSeconds)
@@ -90,12 +93,14 @@ def main(args:typing.Iterable[str])->int:
             rssUrl=arg
     if rssUrl is None:
         print("ERR: No rss url given")
+        printhelp=True
     if printhelp:
         print("Usage: rssTestReader.py [options] rss_url")
         print("Options:")
         print("  -h, --help       Show this help message and exit")
-        print("  -i, --interval=sec  Set the polling interval in seconds (default=5)")
+        print("  -i, --interval=sec  Set the polling interval in seconds (default=5)") # noqa: E501
         return 1
+    rssUrl=typing.cast(str,rssUrl)
     simpleRssReader(rssUrl,None,pollingInterval)
     return 0
 
