@@ -2,7 +2,7 @@
 
 [![Unit tests](https://github.com/TheHeadlessSourceMan/emailToRss/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/TheHeadlessSourceMan/emailToRss/actions/workflows/unit-tests.yml)
 [![Pylint type checking](https://github.com/TheHeadlessSourceMan/emailToRss/actions/workflows/pylint-type-checking.yml/badge.svg)](https://github.com/TheHeadlessSourceMan/emailToRss/actions/workflows/pylint-type-checking.yml)
-[![Coverage](https://img.shields.io/badge/coverage-6%25-red)](https://theheadlesssourceman.github.io/emailToRss/coverage/)
+[![Coverage](https://img.shields.io/badge/coverage-35%25-red)](https://theheadlesssourceman.github.io/emailToRss/coverage/)
 
 I have a problem called email clutter.  Maybe you can relate.
 
